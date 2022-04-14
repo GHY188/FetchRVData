@@ -1,0 +1,3 @@
+git add *   --更新全部
+git commit -m "更新说明"
+git push origin master  --上传

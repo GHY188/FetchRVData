@@ -27,18 +27,30 @@ parser = argparse.ArgumentParser(description='It is a tool for fetching bgp info
 #添加命令行参数
 parser.add_argument('-c','--collector',type=str,required=True,metavar='',help='choose a collector')
 parser.add_argument('-t','--type',type=str,required=True,metavar='',help='choose a info type, such as RIBS or Updates')
-parser.add_argument('-p','--downloadpath',type=str,required=True,metavar='',help='assign a download path')
+parser.add_argument('-p','--downloadpath',type=str, default='/home/route/Documents/python-download', metavar='',help='assign a download path')
 parser.add_argument('-d','--datetime',type=str,required=True,metavar='',help='choose download date and time')
 
 group = parser.add_mutually_exclusive_group()
 group.add_argument('-M','--multiplethread',action='store_true',help='judge whether download files with multiple threads')
 group.add_argument('-S','--singlethread',action='store_true',help='judge whether download files with single threads')
-
 parser.add_argument('-n','--threadnumber',type=int,default=20,metavar='',help='the number of threads')
-parser.add_argument('-x','--configproxy',type=bool,metavar='',help='config proxy')
+
+group2 = parser.add_mutually_exclusive_group()
+group2.add_argument('-X','--notconfigproxy',action='store_true',help='not config proxy')
+group2.add_argument('-Y','--configproxy',action='store_true',help='config proxy')
 
 args = parser.parse_args()
 
+proxies = configproxies.proxies
+
+configproxy = 0
+
+if args.notconfigproxy:
+    configproxy = 0
+elif args.configproxy:
+    configproxy = 1
+else:
+    configproxy = 0
 
 #生成下载链接
 def create_download_url(collector,year,month,day,hour,minute,type):
@@ -86,13 +98,22 @@ class DownloadFile(object):
                    }
         down_file = open(sub_path_file, 'ab')
         try:
-            with httpx.stream("GET", self.download_url, headers=headers) as response:
-                num_bytes_downloaded = response.num_bytes_downloaded
-                for chunk in response.iter_bytes():
-                    if chunk:
-                        down_file.write(chunk)
-                        self.tqdm_obj.update(response.num_bytes_downloaded - num_bytes_downloaded)
-                        num_bytes_downloaded = response.num_bytes_downloaded
+            if configproxy == 0:
+                with httpx.stream("GET", self.download_url, headers=headers) as response:
+                    num_bytes_downloaded = response.num_bytes_downloaded
+                    for chunk in response.iter_bytes():
+                        if chunk:
+                            down_file.write(chunk)
+                            self.tqdm_obj.update(response.num_bytes_downloaded - num_bytes_downloaded)
+                            num_bytes_downloaded = response.num_bytes_downloaded
+            else:
+                with httpx.stream("GET", self.download_url, headers=headers,proxies=proxies) as response:
+                    num_bytes_downloaded = response.num_bytes_downloaded
+                    for chunk in response.iter_bytes():
+                        if chunk:
+                            down_file.write(chunk)
+                            self.tqdm_obj.update(response.num_bytes_downloaded - num_bytes_downloaded)
+                            num_bytes_downloaded = response.num_bytes_downloaded
         except Exception as e:
             print("Thread-{}:请求超时,尝试重连\n报错信息:{}".format(thread_index, e))
             self.downloader(etag, thread_index, start_index, stop_index, retry=True)
