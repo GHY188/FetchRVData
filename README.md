@@ -1,8 +1,10 @@
 # FetchRVData
 
-  这是一个实现了对俄勒冈大学route-views项目收集到的全球路由信息数据进行下载的命令行工具,使用Python语言进行编写
+  这是一个实现了对RouteViews项目和RIPERIS项目收集到的全球路由信息数据进行下载的命令行工具,使用Python语言进行编写
   
-  其中包括的主要参数有：  
+  其中包括的主要参数有：
+  -P: --project             type=str      #必选参数，用来选择项目，如RouteViews或RIPERIS
+  
   -c: --collector           type=str      #必选参数，用来选择收集器
   
   -t: --type                type=str      #必选参数，用来确定路由信息类型，如RIBS或UPDATES
@@ -28,8 +30,9 @@
   
   exampe1:
   
-  route@ubuntu:~/PycharmProjects/FetchRVData$ python3 main.py -c route-views2 -t RIBS -d 202204110800 -M -n 20 -X
+  route@ubuntu:~/PycharmProjects/FetchRVData$ python3 BGPfetcher.py -P RIPERIS -c rrc00 -t latest-update -d 202204180800 -X
   
   example2:
   
-  route@ubuntu:~/PycharmProjects/FetchRVData$ python3 main.py -c route-views2 -t RIBS -p /home/route/Documents -d 202204110800 -M -n 20 -X
+  route@ubuntu:~/PycharmProjects/FetchRVData$ python3 BGPfetcher.py -P RouteViews -c route-views2 -t RIBS -d 202204110800 -n 20 -X -p /home/route/Documents
+
