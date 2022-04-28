@@ -9,17 +9,15 @@
 # 安装过程请参考：https://blog.csdn.net/weixin_44281841/article/details/111558527
 
 
-
 import os
-import bz2
 import argparse
 import sys
 import time
 import httpx
-import configproxies
-import requests
 from tqdm import tqdm
 from threading import Thread
+
+
 
 # 创建解析对象，作为存放参数的容器
 parser = argparse.ArgumentParser(description='It is a tool for fetching bgp info')
@@ -29,29 +27,15 @@ parser.add_argument('-P', '--project', type=str, required=True, metavar='', help
 parser.add_argument('-c', '--collector', type=str, required=True, metavar='', help='choose a collector')
 parser.add_argument('-t', '--type', type=str, required=True, metavar='',
                     help='choose a info type, such as RIBS or Updates')
-parser.add_argument('-p', '--downloadpath', type=str, default='/home/route/Documents/python-download', metavar='',
+parser.add_argument('-p', '--downloadpath', type=str, default='./BGPInfos', metavar='',
                     help='assign a download path')
-parser.add_argument('-d', '--datetime', type=str, required=True, metavar='', help='choose download date and time')
+parser.add_argument('-d', '--datetime', type=str, required=True, metavar='',
+                    help='type a 12 characters-long string contains year, month, day, hour and minute, use 24-hour system, such as 202201010800')
 parser.add_argument('-n', '--threadnumber', type=int, default=1, metavar='', help='the number of threads')
+parser.add_argument('--proxy', type=str, default=None, metavar='', help='Configure the proxy for download')
 
-group = parser.add_mutually_exclusive_group()
-
-group2 = parser.add_mutually_exclusive_group()
-group2.add_argument('-X', '--notconfigproxy', action='store_true', help='not config proxy')
-group2.add_argument('-Y', '--configproxy', action='store_true', help='config proxy')
 
 args = parser.parse_args()
-
-proxies = configproxies.proxies
-
-configproxy = 0
-
-if args.notconfigproxy:
-    configproxy = 0
-elif args.configproxy:
-    configproxy = 1
-else:
-    configproxy = 0
 
 
 # 生成下载链接
@@ -80,7 +64,7 @@ def create_download_url(project, collector, year, month, day, hour, minute, type
             url = father_url + son_url
     else:
         print("Other projects are not supported at this time")
-        url =""
+        url = ""
     return url
 
 
@@ -101,7 +85,7 @@ class DownloadFile(object):
         self.thread_list = []
         self.file_path = os.path.join(self.data_folder, download_url.split('/')[-1])
 
-    def downloader(self, etag, thread_index, start_index, stop_index, retry=False):
+    def downloader(self, etag, thread_index, start_index, stop_index, retry=False, retry_time=0):
         sub_path_file = "{}_{}".format(self.file_path, thread_index)
         if os.path.exists(sub_path_file):
             temp_size = os.path.getsize(sub_path_file)  # 本地已经下载的文件大小
@@ -115,25 +99,23 @@ class DownloadFile(object):
                    }
         down_file = open(sub_path_file, 'ab')
         try:
-            if configproxy == 0:
-                with httpx.stream("GET", self.download_url, headers=headers) as response:
-                    num_bytes_downloaded = response.num_bytes_downloaded
-                    for chunk in response.iter_bytes():
-                        if chunk:
-                            down_file.write(chunk)
-                            self.tqdm_obj.update(response.num_bytes_downloaded - num_bytes_downloaded)
-                            num_bytes_downloaded = response.num_bytes_downloaded
-            else:
-                with httpx.stream("GET", self.download_url, headers=headers, proxies=proxies) as response:
-                    num_bytes_downloaded = response.num_bytes_downloaded
-                    for chunk in response.iter_bytes():
-                        if chunk:
-                            down_file.write(chunk)
-                            self.tqdm_obj.update(response.num_bytes_downloaded - num_bytes_downloaded)
-                            num_bytes_downloaded = response.num_bytes_downloaded
+            with httpx.stream("GET", self.download_url, headers=headers,proxies=args.proxy) as response:
+                num_bytes_downloaded = response.num_bytes_downloaded
+                for chunk in response.iter_bytes():
+                    if chunk:
+                        down_file.write(chunk)
+                        self.tqdm_obj.update(response.num_bytes_downloaded - num_bytes_downloaded)
+                        num_bytes_downloaded = response.num_bytes_downloaded
         except Exception as e:
-            print("Thread-{}:请求超时,尝试重连\n报错信息:{}".format(thread_index, e))
-            self.downloader(etag, thread_index, start_index, stop_index, retry=True)
+            if retry_time < 5:
+                retry_time +=1
+                print("Thread-{}:请求超时,第{}次重试\n报错信息:{}".format(thread_index, retry_time,e))
+                self.downloader(etag, thread_index, start_index, stop_index, retry=True, retry_time=retry_time)
+            else:
+                print('重试次数太多，将在20秒后自动退出')
+                down_file.close()
+                time.sleep(20)
+                sys.exit()
         finally:
             down_file.close()
         return
@@ -143,7 +125,7 @@ class DownloadFile(object):
         获取预下载文件大小和文件etag
         :return:
         """
-        with httpx.stream("GET", self.download_url) as response2:
+        with httpx.stream("HEAD", self.download_url) as response2:
             etag = ''
             total_size = int(response2.headers["Content-Length"])
             for tltle in response2.headers.raw:
@@ -177,8 +159,7 @@ class DownloadFile(object):
         :return:
         """
         if os.path.exists(self.file_path):
-            if len(self.file_path) >= self.file_size:
-                return
+            return
         with open(self.file_path, 'ab') as f_count:
             for thread_index in range(1, self.thread_num + 1):
                 with open("{}_{}".format(self.file_path, thread_index), 'rb') as sub_write:
@@ -244,38 +225,29 @@ class DownloadFile(object):
         return
 
 
+# 检查字符串长度是否合格
+def check_datetime_length(datetime):
+    if len(datetime) == 12:
+        return True
+    else:
+        return False
+
+
 if __name__ == '__main__':
-    download_path = ""
-    download_file_path = ""
-    num = 0
     datetime = args.datetime
-    file_year = datetime[0:4]
-    file_month = datetime[4:6]
-    file_day = datetime[6:8]
-    file_hour = datetime[8:10]
-    file_minute = datetime[10:12]
-    # 生成下载链接
-    download_url = create_download_url(args.project, args.collector, file_year, file_month, file_day, file_hour,
-                                       file_minute, args.type)
+    check_datetime_legal = check_datetime_length(datetime)
+    if check_datetime_legal:
+        file_year = datetime[0:4]
+        file_month = datetime[4:6]
+        file_day = datetime[6:8]
+        file_hour = datetime[8:10]
+        file_minute = datetime[10:12]
+        # 生成下载链接
+        download_url = create_download_url(args.project, args.collector, file_year, file_month, file_day, file_hour,
+                                           file_minute, args.type)
 
-    # 生成下载路径
-    download_path = args.downloadpath
-    if args.type == "RIBS":
-        download_file_path = download_path+"/RouteViews_ribs.bz2"
-    elif args.type == "UPDATES":
-        download_file_path = download_path + "/RouteViews_updates.bz2"
-    elif args.type == "latest-update":
-        download_file_path = download_path + "/RIPERIS_latest_update.gz"
-    elif args.type == "latest-bview":
-        download_file_path = download_path + "/RIPERIS_latest_bview.gz"
-    elif args.type == "updates":
-        download_file_path = download_path + "/RIPERIS_updates.gz"
-
-
-    #多线程下载
-    downloader = DownloadFile(download_url, download_path, args.threadnumber)
-    downloader.main()
-
-
-
-
+        # 多线程下载
+        downloader = DownloadFile(download_url, args.downloadpath, args.threadnumber)
+        downloader.main()
+    else:
+        print("datetime string's format is wrong!")
