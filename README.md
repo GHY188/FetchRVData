@@ -22,9 +22,9 @@
   
   exampe1:
   
-  route@ubuntu:~/PycharmProjects/FetchRVData$ python3 BGPfetcher.py -P RIPERIS -c rrc00 -t latest-update -d 202204180800 -X
+  route@ubuntu:~/PycharmProjects/FetchRVData$ python3 BGPfetcher.py -P RIPERIS -c rrc00 -t latest-update -d 202204180800 
   
   example2:
   
-  route@ubuntu:~/PycharmProjects/FetchRVData$ python3 BGPfetcher.py -P RouteViews -c route-views2 -t RIBS -d 202204110800 -n 20 -X -p /home/route/Documents
+  route@ubuntu:~/PycharmProjects/FetchRVData$ python3 BGPfetcher.py -P RouteViews -c route-views2 -t RIBS -d 202204110800 -n 20 
 
