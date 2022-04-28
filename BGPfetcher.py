@@ -83,7 +83,10 @@ class DownloadFile(object):
         self.cut_size = None
         self.tqdm_obj = None
         self.thread_list = []
-        self.file_path = os.path.join(self.data_folder, download_url.split('/')[-1])
+        if args.type == "latest-update" or args.type == "latest-bview":
+            self.file_path = os.path.join(self.data_folder, args.datetime+download_url.split('/')[-1])
+        else:
+            self.file_path = os.path.join(self.data_folder, download_url.split('/')[-1])
 
     def downloader(self, etag, thread_index, start_index, stop_index, retry=False, retry_time=0):
         sub_path_file = "{}_{}".format(self.file_path, thread_index)
