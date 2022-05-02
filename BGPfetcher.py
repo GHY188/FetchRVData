@@ -4,10 +4,6 @@
 # 和 https://blog.csdn.net/gyuan_/article/details/120561943
 # 和 https://blog.csdn.net/qq_29349715/article/details/120743829
 
-# 此代码需要在Ubuntu操作系统中运行
-# 需要安装bzip2、zlib以及bgpdump
-# 安装过程请参考：https://blog.csdn.net/weixin_44281841/article/details/111558527
-
 
 import os
 import argparse
@@ -20,17 +16,18 @@ from threading import Thread
 
 
 # 创建解析对象，作为存放参数的容器
-parser = argparse.ArgumentParser(description='It is a tool for fetching bgp info')
+parser = argparse.ArgumentParser(description='It is a tool for fetching bgp info. You must assign project, collector, type and datetime.'
+                                             'You can also customize downloadpath, threadnumber and proxy.')
 
 # 添加命令行参数
-parser.add_argument('-P', '--project', type=str, required=True, metavar='', help='choose a project')
-parser.add_argument('-c', '--collector', type=str, required=True, metavar='', help='choose a collector')
+parser.add_argument('-P', '--project', type=str, required=True, metavar='', help='*required* choose a project')
+parser.add_argument('-c', '--collector', type=str, required=True, metavar='', help='*required* choose a collector')
 parser.add_argument('-t', '--type', type=str, required=True, metavar='',
-                    help='choose a info type, such as RIBS or Updates')
+                    help='*required* choose a info type, such as RIBS or Updates')
 parser.add_argument('-p', '--downloadpath', type=str, default='./BGPInfos', metavar='',
-                    help='assign a download path')
+                    help='assign a download path, default path is ./BGPInfos')
 parser.add_argument('-d', '--datetime', type=str, required=True, metavar='',
-                    help='type a 12 characters-long string contains year, month, day, hour and minute, use 24-hour system, such as 202201010800')
+                    help='*required* type a 12 characters-long string contains year, month, day, hour and minute, use 24-hour system, such as 202201010800')
 parser.add_argument('-n', '--threadnumber', type=int, default=1, metavar='', help='the number of threads')
 parser.add_argument('--proxy', type=str, default=None, metavar='', help='Configure the proxy for download')
 
